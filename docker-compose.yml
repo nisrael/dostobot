@@ -1,0 +1,64 @@
+# docker-compose.yml – DostoBot with Traefik reverse proxy
+#
+# Quick start:
+#   1. Copy .env.example to .env and set AUTH_PASSWORD_HASH
+#      (generate hash: docker run --rm -it alpine sh -c 'apk add --no-cache apache2-utils && htpasswd -bnBC 12 "" yourpassword | tr -d ":\n"')
+#   2. Set TRAEFIK_HOST to your domain
+#   3. docker compose up -d
+
+services:
+  dostobot:
+    build: .
+    image: dostobot:latest
+    container_name: dostobot
+    restart: unless-stopped
+
+    environment:
+      PORT: "8080"
+      AUTH_USERNAME: "${AUTH_USERNAME:-admin}"
+      AUTH_PASSWORD_HASH: "${AUTH_PASSWORD_HASH}"
+      LIBRARY_DIR: /music
+      DOWNLOAD_DIR: /downloads
+      DATA_DIR: /data
+
+    volumes:
+      # Your existing music library (adjust the host path)
+      - "${MUSIC_DIR:-./music}:/music"
+      # Persistent queue state
+      - dostobot_data:/data
+      # Temporary download area
+      - dostobot_downloads:/downloads
+
+    networks:
+      - traefik
+
+    labels:
+      - "traefik.enable=true"
+      # Router – HTTPS (Traefik does TLS termination)
+      - "traefik.http.routers.dostobot.rule=Host(`${TRAEFIK_HOST:-dostobot.localhost}`)"
+      - "traefik.http.routers.dostobot.entrypoints=websecure"
+      - "traefik.http.routers.dostobot.tls=true"
+      - "traefik.http.routers.dostobot.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      # Optional HTTP→HTTPS redirect
+      - "traefik.http.routers.dostobot-http.rule=Host(`${TRAEFIK_HOST:-dostobot.localhost}`)"
+      - "traefik.http.routers.dostobot-http.entrypoints=web"
+      - "traefik.http.routers.dostobot-http.middlewares=dostobot-redirect"
+      - "traefik.http.middlewares.dostobot-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.dostobot-redirect.redirectscheme.permanent=true"
+      # Service
+      - "traefik.http.services.dostobot.loadbalancer.server.port=8080"
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  dostobot_data:
+  dostobot_downloads:
+
+networks:
+  traefik:
+    external: true
