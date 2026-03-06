@@ -78,7 +78,7 @@ func (d *Downloader) process(item *QueueItem) error {
 	d.q.update(item.ID, StatusOrganizing)
 	var organized []string
 	for _, ap := range audioPaths {
-		dest, err := d.org.organize(ap)
+		dest, err := d.org.organize(ap, item.Library)
 		if err != nil {
 			log.Printf("downloader: organize %s: %v", ap, err)
 			continue

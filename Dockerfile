@@ -13,11 +13,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /dostobot .
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM alpine:3.21
 
+ARG APP_UID=1002
+ARG APP_GID=1002
+
 # unzip and tar are needed for archive extraction
 RUN apk add --no-cache ca-certificates tzdata unzip tar
 
-# Non-root user
-RUN addgroup -S dostobot && adduser -S -G dostobot dostobot
+# Non-root user with configurable UID/GID
+RUN addgroup -g ${APP_GID} -S dostobot && \
+    adduser -S -D -u ${APP_UID} -G dostobot dostobot
 
 COPY --from=builder /dostobot /usr/local/bin/dostobot
 

@@ -26,6 +26,7 @@ const (
 type QueueItem struct {
 	ID        string     `json:"id"`
 	URL       string     `json:"url"`
+	Library   string     `json:"library,omitempty"`
 	Status    ItemStatus `json:"status"`
 	Error     string     `json:"error,omitempty"`
 	AddedAt   time.Time  `json:"added_at"`
@@ -96,11 +97,12 @@ func (q *Queue) save() {
 	}
 }
 
-// add enqueues a new URL.
-func (q *Queue) add(url string) *QueueItem {
+// add enqueues a new URL with an optional library name.
+func (q *Queue) add(url, library string) *QueueItem {
 	item := &QueueItem{
 		ID:        newID(),
 		URL:       url,
+		Library:   library,
 		Status:    StatusPending,
 		AddedAt:   time.Now(),
 		UpdatedAt: time.Now(),
