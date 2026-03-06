@@ -6,6 +6,31 @@ import (
 	"testing"
 )
 
+// ── trackFromFilename ─────────────────────────────────────────────────────────
+
+func TestTrackFromFilename(t *testing.T) {
+	cases := []struct {
+		name string
+		want int
+	}{
+		{"03 - Song Title", 3},
+		{"01. Song Title", 1},
+		{"05 Example", 5},
+		{"12-Title", 12},
+		{"007_Bond Theme", 7},
+		{"100 Track", 100},
+		{"Song Title", 0},    // no leading number
+		{"01", 0},            // number only, no separator
+		{"not a track", 0},
+	}
+	for _, c := range cases {
+		got := trackFromFilename(c.name)
+		if got != c.want {
+			t.Errorf("trackFromFilename(%q) = %d, want %d", c.name, got, c.want)
+		}
+	}
+}
+
 // ── sanitizeName ──────────────────────────────────────────────────────────────
 
 func TestSanitizeName(t *testing.T) {
@@ -83,6 +108,17 @@ func TestDestinationPath(t *testing.T) {
 				DiscTotal: 2,
 			},
 			want: "/music/Radiohead/OK Computer/02-03. Karma Police.mp3",
+		},
+		{
+			// Track number inferred from filename ("03 - ...") when metadata has none.
+			src: "/tmp/03 - Comfortably Numb.flac",
+			meta: &audioMeta{
+				AlbumArtist: "Pink Floyd",
+				Album:       "The Wall",
+				Title:       "Comfortably Numb",
+				Track:       3,
+			},
+			want: "/music/Pink Floyd/The Wall/03. Comfortably Numb.flac",
 		},
 		{
 			src:  "/tmp/song.flac",
