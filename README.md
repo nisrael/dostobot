@@ -1,7 +1,7 @@
 # dostobot
 A Music Store Download Bot
 
-DostoBot is a self-hosted music download manager deployed as a Docker container. It provides a clean web interface to submit download URLs (e.g. Qobuz purchase links), queues them, downloads and unpacks the archives, reads the audio metadata, and organises the files into your music library.
+**DoStoBot** stands for **Do**wnload**Sto**re**Bot** — a self-hosted music download manager deployed as a Docker container. It provides a clean web interface to submit download URLs (e.g. Qobuz purchase links), queues them, downloads and unpacks the archives, reads the audio metadata, and organises the files into your music library.
 
 ## Features
 
