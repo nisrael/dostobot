@@ -1,20 +1,21 @@
-# docker-compose.yml – DoStoBot with Traefik reverse proxy + authentik forwardauth
+# compose.yaml – DoStoBot with Traefik reverse proxy + authentik forwardauth
 #
 # Prerequisites:
 #   - A running Traefik instance on the `proxy-net` Docker network with a
 #     `websecure` entrypoint and a configured certificate resolver.
 #   - A running authentik instance with a Proxy Provider configured in
-#     "Forward auth (single application)" mode.
+#     "Forward auth (single application)" mode pointing at your DoStoBot domain.
+#     The authentik forwardAuth middleware definition belongs in authentik's own
+#     compose file or in your Traefik static/dynamic configuration — not here.
 #     See: https://goauthentik.io/docs/providers/proxy/forwardauth/
 #
 # Quick start:
-#   1. Copy .env.example to .env and set AUTHENTIK_HOST and PUBLIC_HOST
+#   1. Copy .env.example to .env and set PUBLIC_HOST (and MUSIC_DIR if needed)
 #   2. docker compose up -d
 
 services:
   dostobot:
-    build: .
-    image: dostobot:latest
+    image: ghcr.io/nisrael/dostobot:latest
     container_name: dostobot
     restart: unless-stopped
 
@@ -37,18 +38,14 @@ services:
 
     labels:
       - "traefik.enable=true"
-      # ── authentik forwardauth middleware ──────────────────────────────────────
-      # Define the forwardAuth middleware pointing at your authentik outpost.
-      # Replace ${AUTHENTIK_HOST} with your authentik domain (e.g. auth.example.com).
-      - "traefik.http.middlewares.authentik.forwardauth.address=https://${AUTHENTIK_HOST:-auth.example.com}/outpost.goauthentik.io/auth/traefik"
-      - "traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version"
       # ── Router – HTTPS (Traefik does TLS termination) ─────────────────────────
       - "traefik.http.routers.dostobot.rule=Host(`${PUBLIC_HOST:-dostobot.localhost}`)"
       - "traefik.http.routers.dostobot.entrypoints=websecure"
       - "traefik.http.routers.dostobot.tls=true"
       - "traefik.http.routers.dostobot.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
-      # Apply the authentik middleware to every request (except /health)
+      # Apply the authentik middleware to every request (except /health).
+      # The middleware itself must be defined in authentik's compose file or
+      # in your Traefik configuration — reference it here by name only.
       - "traefik.http.routers.dostobot.middlewares=authentik@docker"
       # ── Optional HTTP→HTTPS redirect ──────────────────────────────────────────
       - "traefik.http.routers.dostobot-http.rule=Host(`${PUBLIC_HOST:-dostobot.localhost}`)"

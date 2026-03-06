@@ -24,12 +24,77 @@ A Music Store Download Bot
 - A running [Traefik](https://traefik.io/) instance on the `proxy-net` Docker network with a `websecure` entrypoint and a configured certificate resolver.
 - A running [authentik](https://goauthentik.io/) instance with a **Proxy Provider** configured in **"Forward auth (single application)"** mode pointing at your DoStoBot domain.
   - See: [authentik Traefik forwardauth integration](https://goauthentik.io/docs/providers/proxy/forwardauth/)
+  - **Important:** The authentik forwardAuth middleware definition (`traefik.http.middlewares.authentik.forwardauth.*` labels) belongs in **authentik's own compose file** or in your Traefik static/dynamic configuration — not in dostobot's compose file.
+
+### Minimal `compose.yaml`
+
+Copy this file to get started. It pulls the pre-built image from the GitHub Container Registry and wires dostobot into your existing Traefik + authentik setup:
+
+```yaml
+services:
+  dostobot:
+    image: ghcr.io/nisrael/dostobot:latest
+    container_name: dostobot
+    restart: unless-stopped
+
+    environment:
+      PORT: "8080"
+      LIBRARY_DIR: /music
+      DOWNLOAD_DIR: /downloads
+      DATA_DIR: /data
+
+    volumes:
+      - "${MUSIC_DIR:-./music}:/music"
+      - dostobot_data:/data
+      - dostobot_downloads:/downloads
+
+    networks:
+      - proxy-net
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dostobot.rule=Host(`${PUBLIC_HOST:-dostobot.localhost}`)"
+      - "traefik.http.routers.dostobot.entrypoints=websecure"
+      - "traefik.http.routers.dostobot.tls=true"
+      - "traefik.http.routers.dostobot.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      # Reference the authentik middleware by name — define it in authentik's compose file.
+      - "traefik.http.routers.dostobot.middlewares=authentik@docker"
+      - "traefik.http.routers.dostobot-http.rule=Host(`${PUBLIC_HOST:-dostobot.localhost}`)"
+      - "traefik.http.routers.dostobot-http.entrypoints=web"
+      - "traefik.http.routers.dostobot-http.middlewares=dostobot-redirect"
+      - "traefik.http.middlewares.dostobot-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.dostobot-redirect.redirectscheme.permanent=true"
+      - "traefik.http.services.dostobot.loadbalancer.server.port=8080"
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  dostobot_data:
+  dostobot_downloads:
+
+networks:
+  proxy-net:
+    external: true
+```
+
+> **authentik / Traefik label responsibility split**
+>
+> The `traefik.http.middlewares.authentik.forwardauth.*` labels that define the
+> authentik forwardAuth middleware (address, trusted headers, authResponseHeaders)
+> should live in **authentik's own compose file** or in your Traefik dynamic
+> configuration — not here. DoStoBot's compose file only *references* the
+> middleware by name (`authentik@docker`).
 
 ### 1. Configure environment
 
 ```bash
 cp .env.example .env
-# Edit .env and set AUTHENTIK_HOST, PUBLIC_HOST, MUSIC_DIR
+# Edit .env and set PUBLIC_HOST and MUSIC_DIR
 ```
 
 ### 2. Start
@@ -126,7 +191,7 @@ organizer.go     Audio metadata reading, library directory layout
 auth.go          authentik forwardAuth middleware (header validation)
 templates/       Server-side rendered HTML (Go templates, no npm)
 Dockerfile       Multi-stage build (golang:alpine → alpine)
-docker-compose.yml  Traefik-ready deployment with authentik forwardauth
+compose.yaml     Traefik-ready deployment with authentik forwardauth
 ```
 
 ## GitHub Copilot
