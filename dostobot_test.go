@@ -83,9 +83,10 @@ func TestDestinationPath(t *testing.T) {
 	org := newOrganizer("/music")
 
 	cases := []struct {
-		src  string
-		meta *audioMeta
-		want string
+		src     string
+		meta    *audioMeta
+		library string
+		want    string
 	}{
 		{
 			src: "/tmp/track.flac",
@@ -95,7 +96,8 @@ func TestDestinationPath(t *testing.T) {
 				Title:       "Comfortably Numb",
 				Track:       6,
 			},
-			want: "/music/Pink Floyd/The Wall/06. Comfortably Numb.flac",
+			library: "Alben",
+			want:    "/music/Alben/Pink Floyd/The Wall/06. Comfortably Numb.flac",
 		},
 		{
 			src: "/tmp/track.mp3",
@@ -107,7 +109,8 @@ func TestDestinationPath(t *testing.T) {
 				Disc:   2,
 				DiscTotal: 2,
 			},
-			want: "/music/Radiohead/OK Computer/02-03. Karma Police.mp3",
+			library: "Alben",
+			want:    "/music/Alben/Radiohead/OK Computer/02-03. Karma Police.mp3",
 		},
 		{
 			// Track number inferred from filename ("03 - ...") when metadata has none.
@@ -118,25 +121,39 @@ func TestDestinationPath(t *testing.T) {
 				Title:       "Comfortably Numb",
 				Track:       3,
 			},
-			want: "/music/Pink Floyd/The Wall/03. Comfortably Numb.flac",
+			library: "Alben",
+			want:    "/music/Alben/Pink Floyd/The Wall/03. Comfortably Numb.flac",
 		},
 		{
-			src:  "/tmp/song.flac",
-			meta: nil,
+			src:     "/tmp/song.flac",
+			meta:    nil,
+			library: "Alben",
 			// no metadata – should use fallback names
-			want: "/music/Unknown Artist/Unknown Album/song.flac",
+			want: "/music/Alben/Unknown Artist/Unknown Album/song.flac",
 		},
 		{
-			src: "/tmp/song.flac",
-			meta: &audioMeta{}, // empty metadata
-			want: "/music/Unknown Artist/Unknown Album/song.flac",
+			src:     "/tmp/song.flac",
+			meta:    &audioMeta{}, // empty metadata
+			library: "Alben",
+			want:    "/music/Alben/Unknown Artist/Unknown Album/song.flac",
+		},
+		{
+			src: "/tmp/track.flac",
+			meta: &audioMeta{
+				AlbumArtist: "Bach",
+				Album:       "Goldberg Variations",
+				Title:       "Aria",
+				Track:       1,
+			},
+			library: "Klassik",
+			want:    "/music/Klassik/Bach/Goldberg Variations/01. Aria.flac",
 		},
 	}
 
 	for _, c := range cases {
-		got := org.destinationPath(c.src, c.meta)
+		got := org.destinationPath(c.src, c.meta, c.library)
 		if got != c.want {
-			t.Errorf("destinationPath(%q, %+v)\n  got  %q\n  want %q", c.src, c.meta, got, c.want)
+			t.Errorf("destinationPath(%q, %+v, %q)\n  got  %q\n  want %q", c.src, c.meta, c.library, got, c.want)
 		}
 	}
 }
@@ -147,8 +164,8 @@ func TestQueueAddAndGet(t *testing.T) {
 	dir := t.TempDir()
 	q := newQueue(filepath.Join(dir, "q.json"))
 
-	q.add("https://example.com/a.zip")
-	q.add("https://example.com/b.zip")
+	q.add("https://example.com/a.zip", "Alben")
+	q.add("https://example.com/b.zip", "Alben")
 
 	items := q.getAll()
 	if len(items) != 2 {
@@ -163,7 +180,7 @@ func TestQueueNextPending(t *testing.T) {
 	dir := t.TempDir()
 	q := newQueue(filepath.Join(dir, "q.json"))
 
-	q.add("https://example.com/a.zip")
+	q.add("https://example.com/a.zip", "Alben")
 	item := q.nextPending()
 	if item == nil {
 		t.Fatal("expected an item")
@@ -181,7 +198,7 @@ func TestQueueRemove(t *testing.T) {
 	dir := t.TempDir()
 	q := newQueue(filepath.Join(dir, "q.json"))
 
-	item := q.add("https://example.com/a.zip")
+	item := q.add("https://example.com/a.zip", "Alben")
 	q.remove(item.ID)
 	if len(q.getAll()) != 0 {
 		t.Error("expected empty queue after remove")
@@ -192,7 +209,7 @@ func TestQueueRetry(t *testing.T) {
 	dir := t.TempDir()
 	q := newQueue(filepath.Join(dir, "q.json"))
 
-	item := q.add("https://example.com/a.zip")
+	item := q.add("https://example.com/a.zip", "Alben")
 	q.update(item.ID, StatusError, withError("timeout"))
 	q.retry(item.ID)
 
@@ -210,8 +227,8 @@ func TestQueuePersistence(t *testing.T) {
 	stateFile := filepath.Join(dir, "q.json")
 
 	q1 := newQueue(stateFile)
-	q1.add("https://example.com/a.zip")
-	q1.add("https://example.com/b.zip")
+	q1.add("https://example.com/a.zip", "Alben")
+	q1.add("https://example.com/b.zip", "Alben")
 
 	// Load into a second queue instance
 	q2 := newQueue(stateFile)
@@ -228,7 +245,7 @@ func TestQueueLoadResetsInProgress(t *testing.T) {
 	stateFile := filepath.Join(dir, "q.json")
 
 	q1 := newQueue(stateFile)
-	item := q1.add("https://example.com/a.zip")
+	item := q1.add("https://example.com/a.zip", "Alben")
 	q1.update(item.ID, StatusDownloading)
 
 	q2 := newQueue(stateFile)
@@ -305,6 +322,42 @@ func TestIsAudio(t *testing.T) {
 		got := isAudio(c.name)
 		if got != c.want {
 			t.Errorf("isAudio(%q) = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// ── validateLibrary ───────────────────────────────────────────────────────────
+
+func TestValidateLibrary(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{"", "Alben", false},             // empty → default
+		{"Alben", "Alben", false},        // default value explicit
+		{"Klassik", "Klassik", false},    // simple ASCII
+		{"My-Library", "My-Library", false}, // hyphen allowed
+		{"my_lib", "my_lib", false},      // underscore allowed
+		{"öäüÖÄÜß", "öäüÖÄÜß", false},   // German umlauts allowed
+		{"Lib123", "Lib123", false},      // digits allowed
+		{"bad/name", "", true},           // slash not allowed
+		{"bad name", "", true},           // space not allowed
+		{"bad.name", "", true},           // dot not allowed
+		{"../evil", "", true},            // path traversal
+	}
+	for _, c := range cases {
+		got, err := validateLibrary(c.in)
+		if c.wantErr {
+			if err == nil {
+				t.Errorf("validateLibrary(%q): expected error, got %q", c.in, got)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("validateLibrary(%q): unexpected error: %v", c.in, err)
+			} else if got != c.want {
+				t.Errorf("validateLibrary(%q) = %q, want %q", c.in, got, c.want)
+			}
 		}
 	}
 }

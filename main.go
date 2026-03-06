@@ -3,11 +3,13 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -41,6 +43,23 @@ func getEnv(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+// defaultLibrary is the library name used when none is specified.
+const defaultLibrary = "Alben"
+
+// libraryPattern matches valid library names.
+var libraryPattern = regexp.MustCompile(`^[a-zA-Z0-9_öäüÖÄÜß-]+$`)
+
+// validateLibrary returns the library name if valid, or an error.
+func validateLibrary(lib string) (string, error) {
+	if lib == "" {
+		return defaultLibrary, nil
+	}
+	if !libraryPattern.MatchString(lib) {
+		return "", fmt.Errorf("invalid library name: only letters, digits, _, - and öäüÖÄÜß are allowed")
+	}
+	return lib, nil
 }
 
 func main() {
@@ -116,7 +135,12 @@ func main() {
 			http.Error(w, "url is required", http.StatusBadRequest)
 			return
 		}
-		q.add(rawURL)
+		library, err := validateLibrary(strings.TrimSpace(r.FormValue("library")))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		q.add(rawURL, library)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})))
 

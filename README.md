@@ -9,8 +9,8 @@ DostoBot is a self-hosted music download manager deployed as a Docker container.
 - **Queue management** – Add, retry, and remove items; queue state is persisted to disk and survives restarts
 - **Archive extraction** – ZIP, TAR, TAR.GZ, and TAR.BZ2 archives are unpacked automatically
 - **Smart library organisation** – Reads ID3/FLAC/Vorbis tags via [`dhowden/tag`](https://github.com/dhowden/tag) and sorts files as:
-  - `{AlbumArtist}/{Album}/NN. Title.ext`
-  - `{AlbumArtist}/{Album}/DD-NN. Title.ext` (when multiple discs are present)
+  - `{Library}/{AlbumArtist}/{Album}/NN. Title.ext`
+  - `{Library}/{AlbumArtist}/{Album}/DD-NN. Title.ext` (when multiple discs are present)
 - **Authentication** – HTTP Basic Auth; password stored as a bcrypt hash
 - **Traefik-ready** – Ships with Traefik labels for HTTPS (TLS termination by Traefik) and automatic HTTP→HTTPS redirect
 - **No Node.js / npm** – Backend and UI are written in pure Go with server-side rendered HTML
@@ -30,7 +30,7 @@ docker run --rm -it alpine sh -c \
 
 ```bash
 cp .env.example .env
-# Edit .env and set AUTH_PASSWORD_HASH, MUSIC_DIR, TRAEFIK_HOST
+# Edit .env and set AUTH_PASSWORD_HASH, MUSIC_DIR, PUBLIC_HOST
 ```
 
 ### 3. Start
@@ -39,7 +39,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The service will be reachable at the domain you set in `TRAEFIK_HOST` via HTTPS.
+The service will be reachable at the domain you set in `PUBLIC_HOST` via HTTPS.
 
 ## Environment variables
 
@@ -51,6 +51,23 @@ The service will be reachable at the domain you set in `TRAEFIK_HOST` via HTTPS.
 | `LIBRARY_DIR` | `/music` | Destination music library directory |
 | `DOWNLOAD_DIR` | `/downloads` | Temporary download/extraction area |
 | `DATA_DIR` | `/data` | Queue state persistence directory |
+
+## Docker build arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `APP_UID` | `1002` | UID for the `dostobot` runtime user |
+| `APP_GID` | `1002` | GID for the `dostobot` runtime group |
+
+Example: `docker build --build-arg APP_UID=1500 --build-arg APP_GID=1500 -t dostobot .`
+
+## Library parameter
+
+When adding a download URL via the web UI or the `POST /add` endpoint, an optional **Library** field is accepted (form field name: `library`).
+
+- **Default:** `Alben`
+- **Allowed characters:** `[a-zA-Z0-9_öäüÖÄÜß-]`
+- The library name is used as the first directory inside `LIBRARY_DIR`, e.g. `LIBRARY_DIR/Alben/AlbumArtist/Album/…`
 
 ## Volumes
 

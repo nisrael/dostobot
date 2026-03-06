@@ -14,8 +14,8 @@ import (
 )
 
 // Organizer moves audio files into a structured library directory.
-// Directory layout:  {LibraryDir}/{AlbumArtist}/{Album}/{NN. Title.ext}
-// With disc numbers:  {LibraryDir}/{AlbumArtist}/{Album}/{DD-NN. Title.ext}
+// Directory layout:  {LibraryDir}/{Library}/{AlbumArtist}/{Album}/{NN. Title.ext}
+// With disc numbers:  {LibraryDir}/{Library}/{AlbumArtist}/{Album}/{DD-NN. Title.ext}
 type Organizer struct {
 	libraryDir string
 }
@@ -25,14 +25,15 @@ func newOrganizer(libraryDir string) *Organizer {
 }
 
 // organize reads metadata from src and moves the file into the library.
+// library is the top-level directory within LibraryDir (e.g. "Alben").
 // It returns the final destination path.
-func (o *Organizer) organize(src string) (string, error) {
+func (o *Organizer) organize(src, library string) (string, error) {
 	meta, err := readMeta(src)
 	if err != nil {
 		log.Printf("organizer: metadata read error for %s: %v – using filename fallback", src, err)
 	}
 
-	dest := o.destinationPath(src, meta)
+	dest := o.destinationPath(src, meta, library)
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return "", fmt.Errorf("create dirs: %w", err)
 	}
@@ -118,7 +119,8 @@ func readMeta(path string) (*audioMeta, error) {
 }
 
 // destinationPath builds the target path for the file.
-func (o *Organizer) destinationPath(src string, m *audioMeta) string {
+// library is placed as the first directory component after libraryDir.
+func (o *Organizer) destinationPath(src string, m *audioMeta, library string) string {
 	ext := strings.ToLower(filepath.Ext(src))
 	baseName := strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
 
@@ -143,7 +145,7 @@ func (o *Organizer) destinationPath(src string, m *audioMeta) string {
 
 	prefix := trackPrefix(m)
 	filename := sanitizeName(prefix + title + ext)
-	return filepath.Join(o.libraryDir, sanitizeName(artist), sanitizeName(album), filename)
+	return filepath.Join(o.libraryDir, library, sanitizeName(artist), sanitizeName(album), filename)
 }
 
 // trackPrefix produces the "01. " or "01-02. " prefix for a file name.
