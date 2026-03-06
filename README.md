@@ -129,3 +129,20 @@ Dockerfile       Multi-stage build (golang:alpine → alpine)
 docker-compose.yml  Traefik-ready deployment with authentik forwardauth
 ```
 
+## GitHub Copilot
+
+This project was developed with the assistance of **GitHub Copilot**. If you
+contribute to DoStoBot, Copilot use is welcome — please see the
+[CONTRIBUTING.md](CONTRIBUTING.md) guide for recommendations and best
+practices specific to this project.
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for
+details on the development workflow, code style, and how to submit a pull
+request.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
