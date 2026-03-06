@@ -1,4 +1,4 @@
-# docker-compose.yml – DostoBot with Traefik reverse proxy + authentik forwardauth
+# docker-compose.yml – DoStoBot with Traefik reverse proxy + authentik forwardauth
 #
 # Prerequisites:
 #   - A running Traefik instance on the `proxy-net` Docker network with a
