@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -57,7 +58,29 @@ type audioMeta struct {
 	DiscTotal   int
 }
 
+// trackLeadingNumber matches a leading number followed by a separator in a
+// filename base (e.g. "03 - Title", "01. Title", "5_Title", "12-Title").
+var trackLeadingNumber = regexp.MustCompile(`^(\d+)[\s.\-_]`)
+
+// trackFromFilename attempts to extract a track number from a filename base
+// (i.e. the filename without its extension). It recognises common patterns
+// such as "03 - Title", "01. Title", "05 Example". Returns 0 if no leading
+// track number is found.
+func trackFromFilename(name string) int {
+	m := trackLeadingNumber.FindStringSubmatch(name)
+	if len(m) < 2 {
+		return 0
+	}
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 // readMeta opens the file and extracts audio metadata.
+// When the tag library reports a zero track number, readMeta falls back to
+// parsing the leading digits from the original filename.
 func readMeta(path string) (*audioMeta, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -72,6 +95,16 @@ func readMeta(path string) (*audioMeta, error) {
 
 	track, trackTotal := m.Track()
 	disc, discTotal := m.Disc()
+
+	// If the tag metadata contains no track number, try to infer it from the
+	// original filename (e.g. "03 - Song Title.mp3").
+	if track == 0 {
+		baseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		if t := trackFromFilename(baseName); t > 0 {
+			track = t
+		}
+	}
+
 	return &audioMeta{
 		AlbumArtist: strings.TrimSpace(m.AlbumArtist()),
 		Artist:      strings.TrimSpace(m.Artist()),
