@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -258,27 +260,34 @@ func TestQueueLoadResetsInProgress(t *testing.T) {
 	}
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
+// ── ForwardAuthMiddleware ─────────────────────────────────────────────────────
 
-func TestAuthCheck(t *testing.T) {
-	a := newAuth("admin", "secret")
+func TestForwardAuthMiddlewareForbiddenWithoutHeader(t *testing.T) {
+	handler := ForwardAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
 
-	if !a.check("admin", "secret") {
-		t.Error("expected valid credentials to pass")
-	}
-	if a.check("admin", "wrong") {
-		t.Error("expected wrong password to fail")
-	}
-	if a.check("other", "secret") {
-		t.Error("expected wrong username to fail")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403 Forbidden without auth header, got %d", rr.Code)
 	}
 }
 
-func TestAuthBcryptHash(t *testing.T) {
-	// newAuth with a plaintext value auto-hashes it; check should still verify.
-	a := newAuth("user", "mypassword")
-	if !a.check("user", "mypassword") {
-		t.Error("expected auto-hashed password to verify correctly")
+func TestForwardAuthMiddlewareAllowedWithHeader(t *testing.T) {
+	handler := ForwardAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Authentik-Username", "alice")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK with auth header, got %d", rr.Code)
 	}
 }
 

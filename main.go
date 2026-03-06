@@ -19,22 +19,18 @@ var templateFS embed.FS
 
 // Config holds runtime configuration loaded from environment variables.
 type Config struct {
-	Port             string
-	AuthUsername     string
-	AuthPasswordHash string
-	LibraryDir       string
-	DownloadDir      string
-	DataDir          string
+	Port        string
+	LibraryDir  string
+	DownloadDir string
+	DataDir     string
 }
 
 func loadConfig() Config {
 	return Config{
-		Port:             getEnv("PORT", "8080"),
-		AuthUsername:     getEnv("AUTH_USERNAME", "admin"),
-		AuthPasswordHash: getEnv("AUTH_PASSWORD_HASH", ""),
-		LibraryDir:       getEnv("LIBRARY_DIR", "/music"),
-		DownloadDir:      getEnv("DOWNLOAD_DIR", "/downloads"),
-		DataDir:          getEnv("DATA_DIR", "/data"),
+		Port:        getEnv("PORT", "8080"),
+		LibraryDir:  getEnv("LIBRARY_DIR", "/music"),
+		DownloadDir: getEnv("DOWNLOAD_DIR", "/downloads"),
+		DataDir:     getEnv("DATA_DIR", "/data"),
 	}
 }
 
@@ -83,9 +79,6 @@ func main() {
 	dl := newDownloader(cfg, q, org)
 	go dl.run()
 
-	// Set up authentication.
-	auth := newAuth(cfg.AuthUsername, cfg.AuthPasswordHash)
-
 	// Parse templates.
 	tmpl := template.Must(template.New("").
 		Funcs(template.FuncMap{
@@ -114,7 +107,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// GET / – main page
-	mux.Handle("GET /", auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /", ForwardAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
@@ -129,7 +122,7 @@ func main() {
 	})))
 
 	// POST /add – enqueue a URL
-	mux.Handle("POST /add", auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("POST /add", ForwardAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rawURL := strings.TrimSpace(r.FormValue("url"))
 		if rawURL == "" {
 			http.Error(w, "url is required", http.StatusBadRequest)
@@ -145,7 +138,7 @@ func main() {
 	})))
 
 	// POST /retry/{id} – retry a failed item
-	mux.Handle("POST /retry/", auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("POST /retry/", ForwardAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/retry/")
 		if id == "" {
 			http.Error(w, "missing id", http.StatusBadRequest)
@@ -156,7 +149,7 @@ func main() {
 	})))
 
 	// POST /delete/{id} – remove an item from the queue
-	mux.Handle("POST /delete/", auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("POST /delete/", ForwardAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/delete/")
 		if id == "" {
 			http.Error(w, "missing id", http.StatusBadRequest)
@@ -174,7 +167,7 @@ func main() {
 	})
 
 	// GET /api/queue – JSON queue snapshot (for AJAX polling)
-	mux.Handle("GET /api/queue", auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /api/queue", ForwardAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(q.getAll()); err != nil {
 			log.Printf("main: json encode error: %v", err)
