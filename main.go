@@ -174,7 +174,7 @@ func main() {
 		}
 	})))
 
-	log.Printf("DostoBot listening on :%s  library=%s", cfg.Port, cfg.LibraryDir)
+	log.Printf("DoStoBot listening on :%s  library=%s", cfg.Port, cfg.LibraryDir)
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      mux,

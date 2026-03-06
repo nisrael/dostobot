@@ -15,14 +15,14 @@ A Music Store Download Bot
 - **Traefik-ready** – Ships with Traefik labels for HTTPS (TLS termination by Traefik), automatic HTTP→HTTPS redirect, and the authentik forwardauth middleware
 - **No Node.js / npm** – Backend and UI are written in pure Go with server-side rendered HTML
 
-![DostoBot UI](https://github.com/user-attachments/assets/5b899069-acb8-4ac7-992d-2900689399e1)
+![DoStoBot UI](https://github.com/user-attachments/assets/5b899069-acb8-4ac7-992d-2900689399e1)
 
 ## Quick start
 
 ### Prerequisites
 
 - A running [Traefik](https://traefik.io/) instance on the `proxy-net` Docker network with a `websecure` entrypoint and a configured certificate resolver.
-- A running [authentik](https://goauthentik.io/) instance with a **Proxy Provider** configured in **"Forward auth (single application)"** mode pointing at your DostoBot domain.
+- A running [authentik](https://goauthentik.io/) instance with a **Proxy Provider** configured in **"Forward auth (single application)"** mode pointing at your DoStoBot domain.
   - See: [authentik Traefik forwardauth integration](https://goauthentik.io/docs/providers/proxy/forwardauth/)
 
 ### 1. Configure environment
@@ -47,15 +47,15 @@ if the `X-Authentik-Username` header is missing from the request.
 ## Authentication
 
 Authentication is entirely delegated to authentik via Traefik's `forwardAuth` middleware.
-There are no usernames or passwords stored inside DostoBot.
+There are no usernames or passwords stored inside DoStoBot.
 
 ### How it works
 
 1. Traefik receives every incoming request.
-2. Before forwarding to DostoBot, Traefik sends the request to authentik's forward-auth endpoint (`/outpost.goauthentik.io/auth/traefik`).
+2. Before forwarding to DoStoBot, Traefik sends the request to authentik's forward-auth endpoint (`/outpost.goauthentik.io/auth/traefik`).
 3. If the session is valid, authentik returns 200 and injects headers such as `X-Authentik-Username` into the forwarded request.
 4. If the session is invalid or absent, authentik returns a redirect to its login page (Traefik surfaces this to the browser).
-5. DostoBot validates the presence of `X-Authentik-Username` as a defence-in-depth check; requests without this header receive **403 Forbidden**.
+5. DoStoBot validates the presence of `X-Authentik-Username` as a defence-in-depth check; requests without this header receive **403 Forbidden**.
 
 The `/health` endpoint is intentionally exempt from authentication so Docker and Traefik can perform health checks.
 
