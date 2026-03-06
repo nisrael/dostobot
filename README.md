@@ -15,7 +15,7 @@ A Music Store Download Bot
 - **Traefik-ready** – Ships with Traefik labels for HTTPS (TLS termination by Traefik), automatic HTTP→HTTPS redirect, and the authentik forwardauth middleware
 - **No Node.js / npm** – Backend and UI are written in pure Go with server-side rendered HTML
 
-![DoStoBot UI](https://github.com/user-attachments/assets/5b899069-acb8-4ac7-992d-2900689399e1)
+![DoStoBot UI](https://github.com/user-attachments/assets/22a53938-5939-4dfa-8ff8-11a2f7093676)
 
 ## Quick start
 
