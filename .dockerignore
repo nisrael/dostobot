@@ -1,0 +1,15 @@
+# Ignore local data directories
+/music/
+/downloads/
+/data/
+
+# Ignore .env (may contain secrets)
+.env
+
+# Git metadata
+.git/
+.gitignore
+
+# Editor artifacts
+.DS_Store
+Thumbs.db

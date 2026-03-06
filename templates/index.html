@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DostoBot – Music Download Manager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #121212;
+      --surface:   #1e1e2e;
+      --border:    #313244;
+      --text:      #cdd6f4;
+      --muted:     #6c7086;
+      --accent:    #89b4fa;
+      --green:     #a6e3a1;
+      --red:       #f38ba8;
+      --yellow:    #f9e2af;
+      --blue:      #89dceb;
+      --radius:    6px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+    header span { color: var(--muted); font-size: .9rem; }
+
+    main { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+
+    /* ── Add URL card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; color: var(--accent); }
+
+    .add-form { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .add-form input[type="url"] {
+      flex: 1 1 300px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: .5rem .75rem;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .add-form input[type="url"]:focus { border-color: var(--accent); }
+    .add-form input[type="url"]::placeholder { color: var(--muted); }
+
+    button, .btn {
+      background: var(--accent);
+      color: #1e1e2e;
+      border: none;
+      border-radius: var(--radius);
+      padding: .5rem 1.1rem;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    button:hover, .btn:hover { opacity: .85; }
+
+    button.danger { background: var(--red); }
+    button.retry  { background: var(--yellow); }
+
+    /* ── Queue table ── */
+    .queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: .75rem;
+    }
+    .queue-header h2 { font-size: 1rem; font-weight: 600; color: var(--accent); }
+    .queue-count { color: var(--muted); font-size: .85rem; }
+
+    .empty { color: var(--muted); text-align: center; padding: 2rem 0; }
+
+    .queue-list { display: flex; flex-direction: column; gap: .6rem; }
+
+    .queue-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .85rem 1rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: .5rem .75rem;
+      align-items: start;
+    }
+
+    .item-status {
+      grid-row: 1 / span 2;
+      align-self: center;
+      padding: .2rem .55rem;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+    .status-pending    { background: #313244; color: var(--muted); }
+    .status-active     { background: #1e3a5f; color: var(--blue); }
+    .status-done       { background: #1e3a2a; color: var(--green); }
+    .status-error      { background: #3a1e1e; color: var(--red); }
+
+    .item-url {
+      font-size: .85rem;
+      color: var(--text);
+      word-break: break-all;
+      min-width: 0;
+    }
+    .item-url a { color: var(--accent); text-decoration: none; }
+    .item-url a:hover { text-decoration: underline; }
+
+    .item-meta {
+      font-size: .78rem;
+      color: var(--muted);
+      grid-column: 2;
+    }
+
+    .item-files {
+      grid-column: 2;
+      font-size: .78rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .item-error {
+      grid-column: 2;
+      font-size: .78rem;
+      color: var(--red);
+    }
+
+    .item-actions {
+      grid-row: 1 / span 3;
+      align-self: center;
+      display: flex;
+      gap: .4rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .item-actions form { margin: 0; }
+    .item-actions button { padding: .3rem .7rem; font-size: .78rem; }
+
+    /* ── Auto-refresh indicator ── */
+    #refresh-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      margin-left: .4rem;
+      vertical-align: middle;
+      opacity: .6;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: .78rem;
+      padding: 2rem 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎵 DostoBot</h1>
+  <span>Music Download Manager</span>
+</header>
+
+<main>
+
+  <!-- ── Add URL ── -->
+  <div class="card">
+    <h2>Add Download URL</h2>
+    <form class="add-form" method="POST" action="/add">
+      <input type="url" name="url" placeholder="https://www.qobuz.com/…  or any direct download link" required autofocus>
+      <button type="submit">Add to Queue</button>
+    </form>
+  </div>
+
+  <!-- ── Queue ── -->
+  <div class="queue-header">
+    <h2>Download Queue <span id="refresh-dot" title="Auto-refreshing"></span></h2>
+    <span class="queue-count" id="queue-count">{{len .Items}} item{{if ne (len .Items) 1}}s{{end}}</span>
+  </div>
+
+  <div class="queue-list" id="queue-list">
+    {{if not .Items}}
+      <p class="empty">Queue is empty. Add a download URL above.</p>
+    {{else}}
+      {{range .Items}}
+        {{template "queue-item" .}}
+      {{end}}
+    {{end}}
+  </div>
+
+</main>
+
+<footer>DostoBot – your personal music download manager</footer>
+
+<script>
+(function() {
+  const dot = document.getElementById('refresh-dot');
+  const list = document.getElementById('queue-list');
+  const count = document.getElementById('queue-count');
+
+  function statusClass(s) {
+    if (s === 'done')    return 'status-done';
+    if (s === 'error')   return 'status-error';
+    if (s === 'pending') return 'status-pending';
+    return 'status-active';
+  }
+
+  function formatTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0') + ' ' +
+      String(d.getHours()).padStart(2,'0') + ':' +
+      String(d.getMinutes()).padStart(2,'0') + ':' +
+      String(d.getSeconds()).padStart(2,'0');
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderItem(item) {
+    const sc = statusClass(item.status);
+    let meta = formatTime(item.added_at);
+    if (item.file_name) meta += ' · ' + esc(item.file_name);
+
+    let extra = '';
+    if (item.error)  extra = `<div class="item-error">⚠ ${esc(item.error)}</div>`;
+    if (item.files && item.files.length) {
+      extra += `<div class="item-files">📁 ${item.files.map(esc).join('<br>')}</div>`;
+    }
+
+    const canDelete = item.status !== 'downloading' && item.status !== 'extracting' && item.status !== 'organizing';
+    const canRetry  = item.status === 'error';
+
+    let actions = '';
+    if (canRetry)  actions += `<form method="POST" action="/retry/${esc(item.id)}"><button class="retry" type="submit">Retry</button></form>`;
+    if (canDelete) actions += `<form method="POST" action="/delete/${esc(item.id)}"><button class="danger" type="submit">Remove</button></form>`;
+
+    return `
+<div class="queue-item">
+  <span class="item-status ${sc}">${esc(item.status)}</span>
+  <div class="item-url"><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.url)}</a></div>
+  <div class="item-actions">${actions}</div>
+  <div class="item-meta">${meta}</div>
+  ${extra}
+</div>`;
+  }
+
+  async function refresh() {
+    try {
+      const r = await fetch('/api/queue');
+      if (!r.ok) return;
+      const items = await r.json();
+
+      // Update count
+      count.textContent = items.length + (items.length === 1 ? ' item' : ' items');
+
+      if (items.length === 0) {
+        list.innerHTML = '<p class="empty">Queue is empty. Add a download URL above.</p>';
+      } else {
+        list.innerHTML = items.map(renderItem).join('');
+      }
+
+      // Blink the dot
+      dot.style.opacity = '1';
+      setTimeout(() => { dot.style.opacity = '0.6'; }, 200);
+    } catch(e) { /* ignore network errors */ }
+  }
+
+  // Poll every 2 seconds
+  setInterval(refresh, 2000);
+})();
+</script>
+
+</body>
+</html>
+
+{{define "queue-item"}}
+<div class="queue-item">
+  <span class="item-status {{statusClass .Status}}">{{.Status}}</span>
+  <div class="item-url">
+    <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a>
+  </div>
+  <div class="item-actions">
+    {{if eq .Status "error"}}
+    <form method="POST" action="/retry/{{.ID}}">
+      <button class="retry" type="submit">Retry</button>
+    </form>
+    {{end}}
+    {{if or (eq .Status "pending") (eq .Status "done") (eq .Status "error")}}
+    <form method="POST" action="/delete/{{.ID}}">
+      <button class="danger" type="submit">Remove</button>
+    </form>
+    {{end}}
+  </div>
+  <div class="item-meta">{{formatTime .AddedAt}}{{if .FileName}} · {{.FileName}}{{end}}</div>
+  {{if .Error}}<div class="item-error">⚠ {{.Error}}</div>{{end}}
+  {{if .Files}}<div class="item-files">📁 {{join .Files ", "}}</div>{{end}}
+</div>
+{{end}}

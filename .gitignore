@@ -1,0 +1,17 @@
+# Binaries / build output
+dostobot
+/dist/
+
+# Environment variables (contains secrets)
+.env
+
+# Downloaded music files that should not be committed
+/music/
+/downloads/
+/data/
+
+# Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
